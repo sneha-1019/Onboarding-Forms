@@ -37,7 +37,6 @@ const InvestorForm = ({ onSubmit, onBack }) => {
       [name]: type === 'checkbox' ? checked : value
     }))
     
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -73,22 +72,56 @@ const InvestorForm = ({ onSubmit, onBack }) => {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (!validateForm()) return
-    
-    setLoading(true)
-    try {
-      const response = await submitInvestorForm(formData)
-      onSubmit(response.data)
-    } catch (error) {
-      console.error('Submission error:', error)
-      setErrors({ submit: 'Failed to submit form. Please try again.' })
-    } finally {
-      setLoading(false)
-    }
+  const cleanFormData = (data) => {
+  const cleaned = {};
+  for (const key in data) {
+    const value = data[key];
+    cleaned[key] =
+      typeof value === 'string' && value.trim() === '' ? undefined : value;
   }
+  return cleaned;
+};
+
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!validateForm()) return;
+
+  const cleanedData = cleanFormData(formData); 
+
+  setLoading(true);
+  try {
+    const response = await submitInvestorForm(cleanedData);
+    onSubmit(response.data);
+  } catch (error) {
+  if (error.response) {
+    console.error('Backend validation failed:', error.response.data);
+
+    if (Array.isArray(error.response.data.errors)) {
+      error.response.data.errors.forEach((err, index) => {
+        console.error(`Error ${index + 1}:`, err.param, '-', err.msg);
+      });
+
+      const backendErrors = {};
+      error.response.data.errors.forEach(err => {
+        backendErrors[err.param] = err.msg;
+      });
+      setErrors(backendErrors);
+    } else {
+      console.error('Unexpected validation format:', error.response.data);
+      setErrors({ submit: error.response.data.message || 'Submission failed' });
+    }
+  } else {
+    console.error('Submission error:', error);
+    setErrors({ submit: 'Something went wrong. Please try again.' });
+  }
+}
+ finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="form-container">
