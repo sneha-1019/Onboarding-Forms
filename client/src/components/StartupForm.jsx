@@ -1,110 +1,161 @@
-import React, { useState } from 'react'
-import { submitStartupForm } from '../services/api'
+import React, { useState } from "react";
+import { submitStartupForm } from "../services/api";
 
 const StartupForm = ({ onSubmit, onBack }) => {
   const [formData, setFormData] = useState({
-    companyName: '',
-    founderName: '',
-    email: '',
-    phone: '',
-    website: '',
-    industry: '',
-    stage: '',
-    fundingAmount: '',
-    description: '',
-    location: '',
-    teamSize: '',
-    revenue: '',
-    founded: '',
-    linkedin: '',
-    businessModel: '',
-    targetMarket: '',
-    useOfFunds: ''
-  })
+    companyName: "",
+    founderName: "",
+    email: "",
+    phone: "",
+    website: "",
+    industry: "",
+    stage: "",
+    fundingAmount: "",
+    description: "",
+    location: "",
+    teamSize: "",
+    revenue: "",
+    founded: "",
+    linkedin: "",
+    businessModel: "",
+    targetMarket: "",
+    useOfFunds: "",
+  });
 
-  const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const industryOptions = [
-    'Technology', 'Healthcare', 'Fintech', 'E-commerce', 'AI/ML', 
-    'SaaS', 'Biotech', 'CleanTech', 'EdTech', 'FoodTech', 'Other'
-  ]
+    "Technology",
+    "Healthcare",
+    "Fintech",
+    "E-commerce",
+    "AI/ML",
+    "SaaS",
+    "Biotech",
+    "CleanTech",
+    "EdTech",
+    "FoodTech",
+    "Other",
+  ];
 
   const stageOptions = [
-    'Idea', 'Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series C+', 'Growth'
-  ]
+    "Idea",
+    "Pre-Seed",
+    "Seed",
+    "Series A",
+    "Series B",
+    "Series C+",
+    "Growth",
+  ];
 
   const businessModelOptions = [
-    'B2B', 'B2C', 'B2B2C', 'Marketplace', 'SaaS', 'Subscription', 'Freemium', 'Other'
-  ]
+    "B2B",
+    "B2C",
+    "B2B2C",
+    "Marketplace",
+    "SaaS",
+    "Subscription",
+    "Freemium",
+    "Other",
+  ];
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
-    }))
-    
+      [name]: value,
+    }));
+
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-  }
+  };
 
   const validateForm = () => {
-    const newErrors = {}
-    
-    if (!formData.companyName.trim()) newErrors.companyName = 'Company name is required'
-    if (!formData.founderName.trim()) newErrors.founderName = 'Founder name is required'
-    if (!formData.email.trim()) newErrors.email = 'Email is required'
-    if (!formData.industry) newErrors.industry = 'Industry is required'
-    if (!formData.stage) newErrors.stage = 'Stage is required'
-    if (!formData.fundingAmount) newErrors.fundingAmount = 'Funding amount is required'
-    if (!formData.description.trim()) newErrors.description = 'Description is required'
-    
+    const newErrors = {};
+
+    if (!formData.companyName.trim())
+      newErrors.companyName = "Company name is required";
+    if (!formData.founderName.trim())
+      newErrors.founderName = "Founder name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (!formData.industry) newErrors.industry = "Industry is required";
+    if (!formData.stage) newErrors.stage = "Stage is required";
+    if (!formData.fundingAmount)
+      newErrors.fundingAmount = "Funding amount is required";
+    if (!formData.description.trim())
+      newErrors.description = "Description is required";
+
     // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (formData.email && !emailRegex.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = "Please enter a valid email address";
     }
-    
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const cleanFormData = (data) => {
+    const cleaned = {};
+    for (const key in data) {
+      const value = data[key];
+      cleaned[key] =
+        typeof value === "string" && value.trim() === "" ? undefined : value;
+    }
+    return cleaned;
+  };
 
   const handleSubmit = async (e) => {
-  e.preventDefault()
+    e.preventDefault();
 
-  if (!validateForm()) return
+    if (!validateForm()) return;
 
-  setLoading(true)
+    const cleanedData = cleanFormData(formData); 
+    setLoading(true);
+    try {
+      const response = await submitStartupForm(cleanedData);
+      onSubmit(response.data);
+    } catch (error) {
+  if (error.response) {
+    console.error('Backend validation failed:', error.response.data);
 
-  try {
-    const cleanedData = {
-      ...formData,
-      teamSize: formData.teamSize ? Number(formData.teamSize) : undefined,
-      founded: formData.founded ? Number(formData.founded) : undefined,
-      revenue: formData.revenue ? Number(formData.revenue) : undefined,
-      fundingAmount: Number(formData.fundingAmount), // required, so must be a number
+    if (Array.isArray(error.response.data.errors)) {
+      error.response.data.errors.forEach((err, index) => {
+        console.error(`Error ${index + 1}:`, err.param, '-', err.msg);
+      });
+
+      const backendErrors = {};
+      error.response.data.errors.forEach(err => {
+        backendErrors[err.param] = err.msg;
+      });
+      setErrors(backendErrors);
+    } else {
+      console.error('Unexpected validation format:', error.response.data);
+      setErrors({ submit: error.response.data.message || 'Submission failed' });
     }
-
-    const response = await submitStartupForm(cleanedData)
-    onSubmit(response.data)
-  } catch (error) {
-    console.error('Submission error:', error)
-    setErrors({ submit: 'Failed to submit form. Please try again.' })
-  } finally {
-    setLoading(false)
+  } else {
+    console.error('Submission error:', error);
+    setErrors({ submit: 'Something went wrong. Please try again.' });
   }
 }
-
+ finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="form-container">
       <div className="form-header">
-        <button className="back-btn" onClick={onBack}>← Back</button>
+        <button className="back-btn" onClick={onBack}>
+          ← Back
+        </button>
         <h2 className="form-title">Startup Onboarding</h2>
-        <p className="form-subtitle">Tell us about your startup and funding needs</p>
+        <p className="form-subtitle">
+          Tell us about your startup and funding needs
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="onboarding-form">
@@ -118,10 +169,12 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                className={errors.companyName ? 'error' : ''}
+                className={errors.companyName ? "error" : ""}
                 placeholder="Acme Inc."
               />
-              {errors.companyName && <span className="error-message">{errors.companyName}</span>}
+              {errors.companyName && (
+                <span className="error-message">{errors.companyName}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -141,14 +194,18 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 name="industry"
                 value={formData.industry}
                 onChange={handleInputChange}
-                className={errors.industry ? 'error' : ''}
+                className={errors.industry ? "error" : ""}
               >
                 <option value="">Select industry</option>
-                {industryOptions.map(industry => (
-                  <option key={industry} value={industry}>{industry}</option>
+                {industryOptions.map((industry) => (
+                  <option key={industry} value={industry}>
+                    {industry}
+                  </option>
                 ))}
               </select>
-              {errors.industry && <span className="error-message">{errors.industry}</span>}
+              {errors.industry && (
+                <span className="error-message">{errors.industry}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -199,10 +256,12 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 name="founderName"
                 value={formData.founderName}
                 onChange={handleInputChange}
-                className={errors.founderName ? 'error' : ''}
+                className={errors.founderName ? "error" : ""}
                 placeholder="Jane Smith"
               />
-              {errors.founderName && <span className="error-message">{errors.founderName}</span>}
+              {errors.founderName && (
+                <span className="error-message">{errors.founderName}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -212,10 +271,12 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className={errors.email ? 'error' : ''}
+                className={errors.email ? "error" : ""}
                 placeholder="jane@acme.com"
               />
-              {errors.email && <span className="error-message">{errors.email}</span>}
+              {errors.email && (
+                <span className="error-message">{errors.email}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -253,8 +314,10 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 onChange={handleInputChange}
               >
                 <option value="">Select business model</option>
-                {businessModelOptions.map(model => (
-                  <option key={model} value={model}>{model}</option>
+                {businessModelOptions.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
                 ))}
               </select>
             </div>
@@ -293,14 +356,18 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 name="stage"
                 value={formData.stage}
                 onChange={handleInputChange}
-                className={errors.stage ? 'error' : ''}
+                className={errors.stage ? "error" : ""}
               >
                 <option value="">Select stage</option>
-                {stageOptions.map(stage => (
-                  <option key={stage} value={stage}>{stage}</option>
+                {stageOptions.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
                 ))}
               </select>
-              {errors.stage && <span className="error-message">{errors.stage}</span>}
+              {errors.stage && (
+                <span className="error-message">{errors.stage}</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -310,11 +377,13 @@ const StartupForm = ({ onSubmit, onBack }) => {
                 name="fundingAmount"
                 value={formData.fundingAmount}
                 onChange={handleInputChange}
-                className={errors.fundingAmount ? 'error' : ''}
+                className={errors.fundingAmount ? "error" : ""}
                 placeholder="500000"
                 min="0"
               />
-              {errors.fundingAmount && <span className="error-message">{errors.fundingAmount}</span>}
+              {errors.fundingAmount && (
+                <span className="error-message">{errors.fundingAmount}</span>
+              )}
             </div>
           </div>
         </div>
@@ -326,11 +395,13 @@ const StartupForm = ({ onSubmit, onBack }) => {
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              className={errors.description ? 'error' : ''}
+              className={errors.description ? "error" : ""}
               rows="4"
               placeholder="Describe your company, product, and mission..."
             />
-            {errors.description && <span className="error-message">{errors.description}</span>}
+            {errors.description && (
+              <span className="error-message">{errors.description}</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -348,11 +419,11 @@ const StartupForm = ({ onSubmit, onBack }) => {
         {errors.submit && <div className="error-message">{errors.submit}</div>}
 
         <button type="submit" className="submit-btn" disabled={loading}>
-          {loading ? 'Submitting...' : 'Complete Onboarding'}
+          {loading ? "Submitting..." : "Complete Onboarding"}
         </button>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default StartupForm
+export default StartupForm;
